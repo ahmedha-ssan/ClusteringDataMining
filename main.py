@@ -4,6 +4,8 @@ from scipy.stats import zscore
 
 dataset = pd.read_csv("imdb_top_2000_movies.csv")
 X = dataset[['IMDB Rating']].values
+def remove_outliers(X, outlier_indices):
+    return np.delete(X, outlier_indices, axis=0)
 
 # Function to calculate Euclidean distance
 def euclidean_distance(a, b):
@@ -15,7 +17,6 @@ def initialize_centroids(X, k):
     centroids = X[centroids_indices]
     return centroids
 
-# Function to assign each data point to the nearest centroid
 def assign_to_clusters(X, centroids):
     clusters = []
     for point in X:
@@ -23,7 +24,6 @@ def assign_to_clusters(X, centroids):
         cluster = np.argmin(distances)
         clusters.append(cluster)
     return clusters
-
 # Function to update centroids based on the mean of the points in each cluster
 def update_centroids(X, clusters, k):
     centroids = np.zeros((k, X.shape[1]))
@@ -32,6 +32,7 @@ def update_centroids(X, clusters, k):
         if len(cluster_points) > 0:
             centroids[cluster_id] = np.mean(cluster_points, axis=0)
     return centroids
+
 # Function to detect outliers using Z-score
 def detect_outliers_zscore(X, threshold):
     z_scores = zscore(X)
@@ -39,33 +40,35 @@ def detect_outliers_zscore(X, threshold):
     outliers = X[outlier_indices]
     return outliers, outlier_indices
 
+
 # Function to perform k-means clustering
 def kmeans_with_zscore(X, k, threshold, max_iterations=100):
+    outliers, outlier_indices = detect_outliers_zscore(X, threshold)
+    if len(outliers) > 0:
+        X = remove_outliers(X, outlier_indices) 
+    #print(X)
+    
     centroids = initialize_centroids(X, k)
+    
     for _ in range(max_iterations):
         clusters = assign_to_clusters(X, centroids)
         new_centroids = update_centroids(X, clusters, k)
         if np.array_equal(new_centroids, centroids):
             break
         centroids = new_centroids
-    outliers, outlier_indices = detect_outliers_zscore(X, threshold)
     return clusters, centroids, outliers, outlier_indices
 
 # User input for percentage of records to analyze
-percentage = float(input("Enter the percentage of records to analyze : "))
-if percentage <= 0 or percentage > 100:
-    print("Invalid percentage. Please enter a value between 0 and 100.")
-    exit()
+percentage = float(50)
 
-# Calculate the number of records to analyze based on the percentage
 num_records = int(len(X) * (percentage / 100))
 X = X[:num_records]
 
 # User input for number of clusters
-k = int(input("Enter the number of clusters (k): "))
+k = int(3)
 
 # User input for Z-score threshold
-threshold = float(input("Enter the Z-score threshold for outlier detection: "))
+threshold = float(3)
 
 # Perform k-means clustering with Z-score outlier detection
 clusters, centroids, outliers, outlier_indices = kmeans_with_zscore(X, k, threshold)
